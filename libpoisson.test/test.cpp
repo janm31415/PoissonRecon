@@ -1,5 +1,6 @@
 #include "test_assert.h"
 #include "estimate_normals.h"
+#include "poisson_recon.h"
 
 
 #include <ctime>
@@ -10,6 +11,7 @@ int main(int /*argc*/, const char* /*argv*/[])
 
   auto tic = std::clock();
   run_all_estimate_normals_tests();
+  run_all_poisson_reconstruction_tests();
   auto toc = std::clock();
 
   if (!testing_fails) 
