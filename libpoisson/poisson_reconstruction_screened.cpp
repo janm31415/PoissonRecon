@@ -132,6 +132,7 @@ void DumpOutput(void* output, const char* format, ...)
     *((std::ostream*)output) << buf;
   }
 }
+
 void DumpOutput2(void* output, std::vector< char* >& comments, const char* format, ...)
 {
   if (output)
@@ -146,14 +147,46 @@ void DumpOutput2(void* output, std::vector< char* >& comments, const char* forma
   }
 }
 
+  template <class T>
+  jtk::boundingbox3d<T> bounding_volume_3d(const T* pts3d, uint32_t number_of_points)
+    {
+    jtk::boundingbox3d<T> result;
+    if (number_of_points == 0)
+      {
+      result.min[0] = (T)1;
+      result.min[1] = (T)1;
+      result.min[2] = (T)1;
+      result.max[0] = (T)0;
+      result.max[1] = (T)0;
+      result.max[2] = (T)0;
+      return result;
+      }
+    result.min[0] = *(pts3d+0);
+    result.min[1] = *(pts3d+1);
+    result.min[2] = *(pts3d+2);
+    result.max[0] = *(pts3d+0);
+    result.max[1] = *(pts3d+1);
+    result.max[2] = *(pts3d+2);
+    for (uint32_t j = 1; j < number_of_points; ++j)
+      {
+      const T* pt = pts3d + j*3;
+      for (int i = 0; i < 3; ++i)
+        {
+        if (result.min[i] > (T)(pt[i]))
+          result.min[i] = (T)(pt[i]);
+        if (result.max[i] < (T)(pt[i]))
+          result.max[i] = (T)(pt[i]);
+        }
+      }
+    return result;
+    }
+
 
 template< class Real>
 XForm4x4<Real> GetPointStreamScale(const Real* pts3d, uint32_t number_of_points, Real expFact)
 {
-  const jtk::vec3<Real>* it = (const jtk::vec3<Real>*)pts3d;
-  const jtk::vec3<Real>* it_end = it + number_of_points;
   
-  auto bb = bounding_volume_3d<Real, const jtk::vec3<Real>*>(it, it_end);
+  auto bb = bounding_volume_3d<Real>(pts3d, number_of_points);
   
   Real scale = std::max<Real>(bb.max[0] - bb.min[0], std::max<Real>(bb.max[1] - bb.min[1], bb.max[2] - bb.min[2]));
   scale *= expFact;
