@@ -38,6 +38,7 @@
 #include <iostream>
 #include <cassert>
 
+#include "jtk/vec.h"
 
 namespace libpoisson
 {
@@ -47,7 +48,7 @@ namespace
 ///////////////////////////////////////////////////////////////////////////////
 
 template <class Real>
-Point3D<Real> Convert(const jtk::vec3<Real>& pt)
+Point3D<Real> Convert(const Real* pt)
 {
   return Point3D<Real>(pt[0], pt[1], pt[2]);
 }
@@ -58,23 +59,24 @@ template <class Real>
 class MyPointStream : public OrientedPointStream < Real >
 {
 public:
-  MyPointStream(const std::vector<jtk::vec3<Real>>& pts, const std::vector<jtk::vec3<Real>>& normals) : p_pts(&pts), p_normals(&normals) {}
+  MyPointStream(const Real* pts, const Real* normals, uint32_t number_of_points) : p_pts(pts), p_normals(normals), _number_of_points(number_of_points){}
   void reset()
   {
     _current = 0;
   }
   virtual bool nextPoint(OrientedPoint3D< Real >& p)
   {
-    if (_current >= p_pts->size())
+    if (_current >= _number_of_points)
       return false;
-    p.p = Convert<Real>((*p_pts)[_current]);
-    p.n = Convert<Real>((*p_normals)[_current]);
+    p.p = Convert<Real>(p_pts + _current*3);
+    p.n = Convert<Real>(p_normals + _current*3);
     ++_current;
     return true;
   }
 private:
-  const std::vector<jtk::vec3<Real>>* p_pts;
-  const std::vector<jtk::vec3<Real>>* p_normals;
+  const Real* p_pts;
+  const Real* p_normals;
+  uint32_t _number_of_points;
   int _current;
 };
 
@@ -84,19 +86,19 @@ template <class Real>
 class MyColoredPointStream : public OrientedPointStreamWithData < Real, Point3D<Real> >
 {
 public:
-  MyColoredPointStream(const std::vector<jtk::vec3<Real>>& pts, const std::vector<jtk::vec3<Real>>& normals, const std::vector<uint32_t>& colors)
-  : p_pts(&pts), p_normals(&normals), p_colors(&colors) {}
+  MyColoredPointStream(const Real* pts, const Real* normals, const uint32_t* colors, uint32_t number_of_points)
+  : p_pts(pts), p_normals(normals), p_colors(colors), _number_of_points(number_of_points) {}
   void reset()
   {
     _current = 0;
   }
   virtual bool nextPoint(OrientedPoint3D< Real >& p, Point3D<Real>& d)
   {
-    if (_current >= p_pts->size())
+    if (_current >= _number_of_points)
       return false;
-    p.p = Convert((*p_pts)[_current]);
-    p.n = Convert((*p_normals)[_current]);
-    uint32_t clr = (*p_colors)[_current];
+    p.p = Convert(p_pts+_current*3);
+    p.n = Convert(p_normals+_current*3);
+    uint32_t clr = *(p_colors + _current);
     uint32_t red = clr & 255;
     uint32_t green = (clr >> 8) & 255;
     uint32_t blue = (clr >> 16) & 255;
@@ -107,9 +109,10 @@ public:
     return true;
   }
 private:
-  const std::vector<jtk::vec3<Real>>* p_pts;
-  const std::vector<jtk::vec3<Real>>* p_normals;
-  const std::vector<uint32_t>* p_colors;
+  const Real* p_pts;
+  const Real* p_normals;
+  const uint32_t* p_colors;
+  uint32_t _number_of_points;
   int _current;
 };
 
@@ -145,9 +148,12 @@ void DumpOutput2(void* output, std::vector< char* >& comments, const char* forma
 
 
 template< class Real>
-XForm4x4<Real> GetPointStreamScale(const std::vector<jtk::vec3<Real>>& vertices, Real expFact)
+XForm4x4<Real> GetPointStreamScale(const Real* pts3d, uint32_t number_of_points, Real expFact)
 {
-  auto bb = bounding_volume_3d<Real>(vertices.begin(), vertices.end());
+  const jtk::vec3<Real>* it = (const jtk::vec3<Real>*)pts3d;
+  const jtk::vec3<Real>* it_end = it + number_of_points;
+  
+  auto bb = bounding_volume_3d<Real, const jtk::vec3<Real>*>(it, it_end);
   
   Real scale = std::max<Real>(bb.max[0] - bb.min[0], std::max<Real>(bb.max[1] - bb.min[1], bb.max[2] - bb.min[2]));
   scale *= expFact;
@@ -160,8 +166,16 @@ XForm4x4<Real> GetPointStreamScale(const std::vector<jtk::vec3<Real>>& vertices,
 }
 
 template <class Real>
-void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, std::vector<jtk::vec3<uint32_t>>& triangles, const std::vector<jtk::vec3<Real>>& pts, const std::vector<jtk::vec3<Real>>& normals, const poisson_reconstruction_screened_parameters& par)
+void _poisson_reconstruction_screened(
+  std::vector<std::array<Real, 3>>& vertices,
+  std::vector<std::array<uint32_t, 3>>& triangles,
+  const Real* pts3d,
+  const Real* normals,
+  uint32_t number_of_points,
+  const poisson_reconstruction_screened_parameters& par)
 {
+  vertices.clear();
+  triangles.clear();
   int MaxDepthVal = 8;
   int MaxSolveDepthVal = -1;
   int KernelDepthVal = -1;
@@ -197,7 +211,7 @@ void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, st
   Reset< Real >();
   std::vector< char* > comments;
   
-  XForm4x4< Real > xForm = GetPointStreamScale<Real>(pts, ScaleVal);
+  XForm4x4< Real > xForm = GetPointStreamScale<Real>(pts3d, number_of_points, ScaleVal);
   XForm4x4< Real > iXForm = xForm.inverse();
   DumpOutput2(par.output_stream, comments, "Running Screened Poisson Reconstruction (Version 9.0)\n");
   double startTime = Time();
@@ -232,7 +246,7 @@ void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, st
   {
     
     sampleData = nullptr;// new std::vector< ProjectiveData< Point3D< Real >, Real > >();
-    MyPointStream my_pointStream(pts, normals);
+    MyPointStream my_pointStream(pts3d, normals, number_of_points);
     my_pointStream.reset();
     XPointStream _pointStream(xForm, my_pointStream);
     pointCount = tree.template init< Point3D< Real > >(_pointStream, MaxDepthVal, ConfidenceFlag, *samples, sampleData);
@@ -372,7 +386,7 @@ void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, st
     
     Point3D<Real> pp = iXForm * vertex.point;
     
-    vertices.push_back(jtk::vec3<Real>(pp[0], pp[1], pp[2]));
+    vertices.push_back({{pp[0], pp[1], pp[2]}});
   }
   for (int i = 0; i < mesh.outOfCorePointCount(); ++i)
   {
@@ -380,7 +394,7 @@ void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, st
     mesh.nextOutOfCorePoint(vertex);
     Point3D<Real> pp = iXForm * vertex.point;
     
-    vertices.push_back(jtk::vec3<Real>(pp[0], pp[1], pp[2]));
+    vertices.push_back({{pp[0], pp[1], pp[2]}});
   }
   std::vector< CoredVertexIndex > polygon;
   while (mesh.nextPolygon(polygon))
@@ -392,7 +406,7 @@ void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, st
       if (polygon[i].inCore) indV[i] = polygon[i].idx;
       else                    indV[i] = polygon[i].idx + int(mesh.inCorePoints.size());
     }
-    jtk::vec3<uint32_t> tria(indV[0], indV[1], indV[2]);
+    std::array<uint32_t, 3> tria = {{(uint32_t)indV[0], (uint32_t)indV[1], (uint32_t)indV[2]}};
     triangles.push_back(tria);
   }
   
@@ -404,8 +418,19 @@ void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, st
 
 
 template <class Real>
-void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, std::vector<jtk::vec3<uint32_t>>& triangles, std::vector<jtk::vec3<Real>>& vertex_colors, const std::vector<jtk::vec3<Real>>& pts, const std::vector<jtk::vec3<Real>>& normals, const std::vector<uint32_t>& colors, const poisson_reconstruction_screened_parameters& par)
+void _poisson_reconstruction_screened(
+  std::vector<std::array<Real, 3>>& vertices,
+  std::vector<std::array<uint32_t, 3>>& triangles,
+  std::vector<uint32_t>& vertex_colors,
+  const Real* pts3d,
+  const Real* normals,
+  const uint32_t* colors,
+  uint32_t number_of_points,
+  const poisson_reconstruction_screened_parameters& par)
 {
+  vertices.clear();
+  triangles.clear();
+  vertex_colors.clear();
   int MaxDepthVal = 8;
   int MaxSolveDepthVal = -1;
   int KernelDepthVal = -1;
@@ -441,7 +466,7 @@ void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, st
   Reset< Real >();
   std::vector< char* > comments;
   
-  XForm4x4< Real > xForm = GetPointStreamScale<Real>(pts, ScaleVal);
+  XForm4x4< Real > xForm = GetPointStreamScale<Real>(pts3d, number_of_points, ScaleVal);
   XForm4x4< Real > iXForm = xForm.inverse();
   DumpOutput2(par.output_stream, comments, "Running Screened Poisson Reconstruction (Version 9.0)\n");
   double startTime = Time();
@@ -476,7 +501,7 @@ void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, st
   {
     
     sampleData = new std::vector< ProjectiveData< Point3D< Real >, Real > >();
-    MyColoredPointStream my_pointStream(pts, normals, colors);
+    MyColoredPointStream my_pointStream(pts3d, normals, colors, number_of_points);
     my_pointStream.reset();
     XPointStreamWithData _pointStream(xForm, my_pointStream);
     pointCount = tree.template init< Point3D< Real > >(_pointStream, MaxDepthVal, ConfidenceFlag, *samples, sampleData);
@@ -619,9 +644,11 @@ void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, st
     
     Point3D<Real> pp = iXForm * vertex.point;
     
-    vertices.push_back(jtk::vec3<Real>(pp[0], pp[1], pp[2]));
+    vertices.push_back({{pp[0], pp[1], pp[2]}});
     
-    vertex_colors.push_back(jtk::vec3<Real>(vertex.color[0] / 255.f, vertex.color[1] / 255.f, vertex.color[2] / 255.f));
+    uint32_t clr = 0xff000000 | ((uint32_t)vertex.color[2] << 16) | ((uint32_t)vertex.color[1]) | ((uint32_t)vertex.color[0]);
+    
+    vertex_colors.push_back(clr);
   }
   for (int i = 0; i < mesh.outOfCorePointCount(); ++i)
   {
@@ -629,8 +656,10 @@ void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, st
     mesh.nextOutOfCorePoint(vertex);
     Point3D<Real> pp = iXForm * vertex.point;
     
-    vertices.push_back(jtk::vec3<Real>(pp[0], pp[1], pp[2]));
-    vertex_colors.push_back(jtk::vec3<Real>(vertex.color[0] / 255.f, vertex.color[1] / 255.f, vertex.color[2] / 255.f));
+    vertices.push_back({{pp[0], pp[1], pp[2]}});
+    
+    uint32_t clr = 0xff000000 | ((uint32_t)vertex.color[2] << 16) | ((uint32_t)vertex.color[1]) | ((uint32_t)vertex.color[0]);
+    vertex_colors.push_back(clr);
   }
   std::vector< CoredVertexIndex > polygon;
   while (mesh.nextPolygon(polygon))
@@ -642,7 +671,7 @@ void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, st
       if (polygon[i].inCore) indV[i] = polygon[i].idx;
       else                    indV[i] = polygon[i].idx + int(mesh.inCorePoints.size());
     }
-    jtk::vec3<uint32_t> tria(indV[0], indV[1], indV[2]);
+    std::array<uint32_t, 3> tria = {{(uint32_t)indV[0], (uint32_t)indV[1], (uint32_t)indV[2]}};
     triangles.push_back(tria);
   }
   
@@ -657,24 +686,48 @@ void _poisson_reconstruction_screened(std::vector<jtk::vec3<Real>>& vertices, st
 }
 
 
-
-void poisson_reconstruction_screened(std::vector<jtk::vec3<float>>& vertices, std::vector<jtk::vec3<uint32_t>>& triangles, const std::vector<jtk::vec3<float>>& pts, const std::vector<jtk::vec3<float>>& normals, const poisson_reconstruction_screened_parameters& par)
-{
-  _poisson_reconstruction_screened<float>(vertices, triangles, pts, normals, par);
+void poisson_reconstruction_screened(
+  std::vector<std::array<float, 3>>& vertices,
+  std::vector<std::array<uint32_t, 3>>& triangles,
+  const float* pts3d,
+  const float* normals3d,
+  uint32_t number_of_points,
+  const poisson_reconstruction_screened_parameters& par) {
+  _poisson_reconstruction_screened(vertices, triangles, pts3d, normals3d, number_of_points, par);
 }
 
-void poisson_reconstruction_screened(std::vector<jtk::vec3<float>>& vertices, std::vector<jtk::vec3<uint32_t>>& triangles, std::vector<jtk::vec3<float>>& vertex_colors, const std::vector<jtk::vec3<float>>& pts, const std::vector<jtk::vec3<float>>& normals, const std::vector<uint32_t>& colors, const poisson_reconstruction_screened_parameters& par) {
-  _poisson_reconstruction_screened<float>(vertices, triangles, vertex_colors, pts, normals, colors, par);
+void poisson_reconstruction_screened(
+  std::vector<std::array<float, 3>>& vertices,
+  std::vector<std::array<uint32_t, 3>>& triangles,
+  std::vector<uint32_t>& vertex_colors,
+  const float* pts3d,
+  const float* normals3d,
+  const uint32_t* colors,
+  uint32_t number_of_points,
+  const poisson_reconstruction_screened_parameters& par) {
+  _poisson_reconstruction_screened(vertices, triangles, vertex_colors, pts3d, normals3d, colors, number_of_points, par);
 }
 
-void poisson_reconstruction_screened(std::vector<jtk::vec3<double>>& vertices, std::vector<jtk::vec3<uint32_t>>& triangles, const std::vector<jtk::vec3<double>>& pts, const std::vector<jtk::vec3<double>>& normals, const poisson_reconstruction_screened_parameters& par)
-{
-  _poisson_reconstruction_screened<double>(vertices, triangles, pts, normals, par);
+void poisson_reconstruction_screened(
+  std::vector<std::array<double, 3>>& vertices,
+  std::vector<std::array<uint32_t, 3>>& triangles,
+  const double* pts3d,
+  const double* normals3d,
+  uint32_t number_of_points,
+  const poisson_reconstruction_screened_parameters& par) {
+  _poisson_reconstruction_screened(vertices, triangles, pts3d, normals3d, number_of_points, par);
 }
-
-void poisson_reconstruction_screened(std::vector<jtk::vec3<double>>& vertices, std::vector<jtk::vec3<uint32_t>>& triangles, std::vector<jtk::vec3<double>>& vertex_colors, const std::vector<jtk::vec3<double>>& pts, const std::vector<jtk::vec3<double>>& normals, const std::vector<uint32_t>& colors, const poisson_reconstruction_screened_parameters& par) {
-  _poisson_reconstruction_screened<double>(vertices, triangles, vertex_colors, pts, normals, colors, par);
+  
+void poisson_reconstruction_screened(
+  std::vector<std::array<double, 3>>& vertices,
+  std::vector<std::array<uint32_t, 3>>& triangles,
+  std::vector<uint32_t>& vertex_colors,
+  const double* pts3d,
+  const double* normals3d,
+  const uint32_t* colors,
+  uint32_t number_of_points,
+  const poisson_reconstruction_screened_parameters& par) {
+  _poisson_reconstruction_screened(vertices, triangles, vertex_colors, pts3d, normals3d, colors, number_of_points, par);
 }
-
 }
 #pragma warning(pop)

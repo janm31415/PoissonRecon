@@ -1,8 +1,9 @@
 #pragma once
 
-#include "jtk/vec.h"
 #include "libpoisson_api.h"
+
 #include <stdint.h>
+#include <array>
 #include <vector>
 
 namespace libpoisson
@@ -26,12 +27,40 @@ struct poisson_reconstruction_screened_parameters
   void* output_stream;
   };
 
-LIBPOISSON_API void poisson_reconstruction_screened(std::vector<jtk::vec3<float>>& vertices, std::vector<jtk::vec3<uint32_t>>& triangles, const std::vector<jtk::vec3<float>>& pts, const std::vector<jtk::vec3<float>>& normals, const poisson_reconstruction_screened_parameters& par);
+LIBPOISSON_API void poisson_reconstruction_screened(
+  std::vector<std::array<float, 3>>& vertices,
+  std::vector<std::array<uint32_t, 3>>& triangles,
+  const float* pts3d,
+  const float* normals3d,
+  uint32_t number_of_points,
+  const poisson_reconstruction_screened_parameters& par);
+  
+LIBPOISSON_API void poisson_reconstruction_screened(
+  std::vector<std::array<float, 3>>& vertices,
+  std::vector<std::array<uint32_t, 3>>& triangles,
+  std::vector<uint32_t>& vertex_colors,
+  const float* pts3d,
+  const float* normals3d,
+  const uint32_t* colors,
+  uint32_t number_of_points,
+  const poisson_reconstruction_screened_parameters& par);
 
-LIBPOISSON_API void poisson_reconstruction_screened(std::vector<jtk::vec3<float>>& vertices, std::vector<jtk::vec3<uint32_t>>& triangles, std::vector<jtk::vec3<float>>& vertex_colors, const std::vector<jtk::vec3<float>>& pts, const std::vector<jtk::vec3<float>>& normals, const std::vector<uint32_t>& colors, const poisson_reconstruction_screened_parameters& par);
-
-LIBPOISSON_API void poisson_reconstruction_screened(std::vector<jtk::vec3<double>>& vertices, std::vector<jtk::vec3<uint32_t>>& triangles, const std::vector<jtk::vec3<double>>& pts, const std::vector<jtk::vec3<double>>& normals, const poisson_reconstruction_screened_parameters& par);
-
-LIBPOISSON_API void poisson_reconstruction_screened(std::vector<jtk::vec3<double>>& vertices, std::vector<jtk::vec3<uint32_t>>& triangles, std::vector<jtk::vec3<double>>& vertex_colors, const std::vector<jtk::vec3<double>>& pts, const std::vector<jtk::vec3<double>>& normals, const std::vector<uint32_t>& colors, const poisson_reconstruction_screened_parameters& par);
+LIBPOISSON_API void poisson_reconstruction_screened(
+  std::vector<std::array<double, 3>>& vertices,
+  std::vector<std::array<uint32_t, 3>>& triangles,
+  const double* pts3d,
+  const double* normals3d,
+  uint32_t number_of_points,
+  const poisson_reconstruction_screened_parameters& par);
+  
+LIBPOISSON_API void poisson_reconstruction_screened(
+  std::vector<std::array<double, 3>>& vertices,
+  std::vector<std::array<uint32_t, 3>>& triangles,
+  std::vector<uint32_t>& vertex_colors,
+  const double* pts3d,
+  const double* normals3d,
+  const uint32_t* colors,
+  uint32_t number_of_points,
+  const poisson_reconstruction_screened_parameters& par);
 
 } // namespace libpoisson
