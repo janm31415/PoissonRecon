@@ -18,4 +18,5 @@ endif (WIN32)
 
 
 add_subdirectory(libpoisson)
+add_subdirectory(libpoisson.test)
 
