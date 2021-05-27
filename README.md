@@ -1,2 +1,2 @@
 # PoissonRecon
-Poisson Reconstruction from https://github.com/mkazhdan/PoissonRecon with automatic normal computation
+Poisson Reconstruction from https://github.com/mkazhdan/PoissonRecon with added functionality for normal computation
