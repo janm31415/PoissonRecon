@@ -16,14 +16,20 @@ struct poisson_reconstruction_screened_parameters
     depth = 8;
     octree_depth = 5;
     samples_per_node = 1.5;
-    solver_divide = 0;
+    scale_factor = 1.1;
+    conjugate_gradients_depth = 0;
+    interpolation_weight = 4;
+    conjugate_gradients_iterations = 8;
     output_stream = nullptr;
     }
 
   int depth;
   int octree_depth;
   double samples_per_node;
-  int solver_divide;
+  double scale_factor;
+  int conjugate_gradients_depth;
+  int conjugate_gradients_iterations;
+  double interpolation_weight;
   void* output_stream;
   };
 
