@@ -1,7 +1,5 @@
 #pragma once
 
-#include "libpoisson_api.h"
-
 #include <stdint.h>
 #include <array>
 #include <vector>
@@ -33,7 +31,7 @@ struct poisson_reconstruction_screened_parameters
   void* output_stream;
   };
 
-LIBPOISSON_API void poisson_reconstruction_screened(
+void poisson_reconstruction_screened(
   std::vector<std::array<float, 3>>& vertices,
   std::vector<std::array<uint32_t, 3>>& triangles,
   const float* pts3d,
@@ -41,7 +39,7 @@ LIBPOISSON_API void poisson_reconstruction_screened(
   uint32_t number_of_points,
   const poisson_reconstruction_screened_parameters& par);
   
-LIBPOISSON_API void poisson_reconstruction_screened(
+void poisson_reconstruction_screened(
   std::vector<std::array<float, 3>>& vertices,
   std::vector<std::array<uint32_t, 3>>& triangles,
   std::vector<uint32_t>& vertex_colors,
@@ -51,7 +49,7 @@ LIBPOISSON_API void poisson_reconstruction_screened(
   uint32_t number_of_points,
   const poisson_reconstruction_screened_parameters& par);
 
-LIBPOISSON_API void poisson_reconstruction_screened(
+void poisson_reconstruction_screened(
   std::vector<std::array<double, 3>>& vertices,
   std::vector<std::array<uint32_t, 3>>& triangles,
   const double* pts3d,
@@ -59,7 +57,7 @@ LIBPOISSON_API void poisson_reconstruction_screened(
   uint32_t number_of_points,
   const poisson_reconstruction_screened_parameters& par);
   
-LIBPOISSON_API void poisson_reconstruction_screened(
+void poisson_reconstruction_screened(
   std::vector<std::array<double, 3>>& vertices,
   std::vector<std::array<uint32_t, 3>>& triangles,
   std::vector<uint32_t>& vertex_colors,

@@ -1,7 +1,6 @@
 find_package(OpenMP)
 
 set(HDRS
-libpoisson_api.h
 poisson_reconstruction_screened.h
 estimate_normals.h
 )
@@ -74,7 +73,7 @@ add_definitions(-DUNICODE)
 add_definitions(-D_SCL_SECURE_NO_WARNINGS)
 add_definitions(-D_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS)
 
-add_library(libpoisson SHARED ${HDRS} ${SRCS}  ${HDRS_POISSON_SCREENED} ${SRCS_POISSON_SCREENED} ${JTK})
+add_library(libpoisson STATIC ${HDRS} ${SRCS}  ${HDRS_POISSON_SCREENED} ${SRCS_POISSON_SCREENED} ${JTK})
 
 source_group("Header Files" FILES ${HDRS})
 source_group("Source Files" FILES ${SRCS})
