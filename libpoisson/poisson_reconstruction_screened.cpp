@@ -679,7 +679,7 @@ void _poisson_reconstruction_screened(
     
     vertices.push_back({{pp[0], pp[1], pp[2]}});
     
-    uint32_t clr = 0xff000000 | ((uint32_t)vertex.color[2] << 16) | ((uint32_t)vertex.color[1]) | ((uint32_t)vertex.color[0]);
+    uint32_t clr = 0xff000000 | ((uint32_t)vertex.color[2] << 16) | ((uint32_t)vertex.color[1] << 8) | ((uint32_t)vertex.color[0]);
     
     vertex_colors.push_back(clr);
   }
@@ -691,7 +691,7 @@ void _poisson_reconstruction_screened(
     
     vertices.push_back({{pp[0], pp[1], pp[2]}});
     
-    uint32_t clr = 0xff000000 | ((uint32_t)vertex.color[2] << 16) | ((uint32_t)vertex.color[1]) | ((uint32_t)vertex.color[0]);
+    uint32_t clr = 0xff000000 | ((uint32_t)vertex.color[2] << 16) | ((uint32_t)vertex.color[1] << 8) | ((uint32_t)vertex.color[0]);
     vertex_colors.push_back(clr);
   }
   std::vector< CoredVertexIndex > polygon;
